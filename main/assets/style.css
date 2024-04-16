@@ -1,0 +1,20 @@
+:root {
+    --color: #00FF00;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+#realDistText {
+    background: rgba(0,0,0,0.5);
+    padding:16px;
+    color: white;
+
+    position: fixed;
+    right: 0;
+    bottom: 0;
+}

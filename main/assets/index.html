@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!--
+====================================================================================================
+  Créditos
+  * Stemkoski: https://stemkoski.github.io/AR.js-examples/index.html
+  Gracias a sus ejemplos he podido hacer esto,sin su ayuda sería bastante dificil el desarrollo.
+  * meuser07: https://stackoverflow.com/users/8641807/meuser07
+  Por ayudarme a dar permisos de cámara al web view.
+  * W3C: https://www.w3schools.com/js/
+  Increíble documentación para usar JS.
+  * AR.js: https://github.com/AR-js-org/AR.js
+  Sin sus librerías sería imposible el proyecto.
+====================================================================================================
+-->
+
+<html lang="en">
+
+<head>
+
+    <title>QRMeter</title>
+
+
+    <meta charset="UTF-8">
+
+    <script src="js/aframe.min.js"></script>
+    <script src="js/aframe-ar.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+
+
+    <script>
+
+        const textoparriba = 0.2; // FIXME: Arreglar la posición del texto hacia arriba
+
+        let pm = new THREE.Vector3();
+        let dist = 0;
+        let realDist = 0;
+
+        let qrSize = parseFloat(prompt("Marker Size"))
+
+        // let qrSize = parseFloat(localStorage.getItem("qrSize"));
+        // if (!qrSize) {
+        //     qrSize = parseFloat(prompt("Marker Size"))
+        //     if (!qrSize) {
+        //         // TODO: Show error and abort
+        //     } else {
+        //         localStorage.setItem("qrSize", qrSize);
+        //     }
+        // }
+
+        // store visibility data in object;
+        //  can only draw line when both are visible.
+        const markerVisible = { m0: false, m1: false };
+
+        AFRAME.registerComponent('markerevents', {
+            init: function () {
+                const marker = this.el;
+
+                marker.addEventListener('markerFound', function () {
+                    markerVisible[marker.id] = true;
+                });
+
+                marker.addEventListener('markerLost', function () {
+                    markerVisible[marker.id] = false;
+                });
+            }
+        });
+
+        AFRAME.registerComponent('run', {
+            init: function () { // FIXME: Color universal no funciona y no sé por qué
+                document.querySelectorAll("a-scene a-marker a-sphere").forEach(x => {
+                    // console.log(x, x.detail);
+                    // console.log("Probha",COLOR);
+                    // x.color = COLOR;
+                });
+
+                this.realDistText = document.getElementById("realDistText");
+                this.m0 = document.querySelector("#m0");
+                this.m1 = document.querySelector("#m1");
+                this.p0 = new THREE.Vector3();
+                this.p1 = new THREE.Vector3();
+
+                const geometry = new THREE.CylinderGeometry(0.025, 0.025, 1, 12);
+                geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0, 0.5, 0));
+                geometry.applyMatrix(new THREE.Matrix4().makeRotationX(THREE.Math.degToRad(90)));
+                const material = new THREE.MeshLambertMaterial({ color: 0x00FF00 });
+                this.cylinder = new THREE.Mesh(geometry, material);
+                this.cylinderGroup = document.querySelector('#cylinderGroup').object3D;
+                this.cylinderGroup.add(this.cylinder);
+            },
+
+            tick: function (time, deltaTime) {
+                if (markerVisible["m0"] && markerVisible["m1"]) {
+                    this.m0.object3D.getWorldPosition(this.p0);
+                    this.m1.object3D.getWorldPosition(this.p1);
+
+
+                    dist = this.p0.distanceTo(this.p1);
+                    realDist = dist * qrSize;
+                    // Calculate medium point
+                    //Tengo que clonar el punto vectorial porque me desaparece y no sé por qué
+                    pm = this.p0.clone().add((this.p1.clone().sub(this.p0)).divideScalar(2));
+                    realDistText.innerHTML = realDist.toFixed(4);
+
+                    this.cylinderGroup.lookAt(this.p1);
+                    this.cylinder.scale.set(1, 1, dist);
+                    this.cylinder.visible = true;
+                }
+                else {
+                    this.cylinder.visible = false;
+                }
+            }
+        });
+        AFRAME.registerComponent('textevents', {
+            init: function () {
+            },
+
+            tick: function (time, deltaTime) {
+                if (markerVisible["m0"] && markerVisible["m1"]) {
+                    this.el.object3D.position.set(pm.x, pm.y + textoparriba, pm.z); // FIXME: hacerlo mejor
+                    this.el.setAttribute('value', realDist.toFixed(4));
+                    this.el.object3D.visible = true;
+                } else {
+                    this.el.object3D.visible = false;
+                }
+            }
+        });
+    </script>
+</head>
+
+<body>
+
+    <a-scene embedded vr-mode-ui="enabled: false;"
+        arjs="trackingMethod: best; maxDetectionRate: 60; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        renderer='antialias: true; logarithmicDepthBuffer: true; alpha: true; precision: medium;' stats>
+
+        <a-marker id="m0" type="barcode" value="0" markerevents>
+            <a-sphere radius="0.05" color="yellow"></a-sphere>
+            <a-entity id="cylinderGroup"></a-entity>
+        </a-marker>
+
+        <a-marker id="m1" type="barcode" value="1" markerevents>
+            <a-sphere radius="0.05" color="blue"></a-sphere>
+        </a-marker>
+
+        <a-text value="Hello, world!" font="" color="red" rotation="0 0 0" align="center" scale="2 2 2" textevents>
+        </a-text>
+
+        <a-entity camera></a-entity>
+        <a-entity run></a-entity>
+    </a-scene>
+
+    <h1 id="realDistText"></h1>
+
+</body>
+
+
+</html>
